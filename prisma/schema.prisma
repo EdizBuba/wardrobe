@@ -1,0 +1,306 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ItemStatus {
+  AVAILABLE
+  DIRTY
+  LAUNDRY
+  BORROWED
+  REPAIR
+  UNAVAILABLE
+}
+
+enum Category {
+  TOP
+  BOTTOM
+  OUTERWEAR
+  FOOTWEAR
+  ONE_PIECE
+  SPORTSWEAR
+  ACCESSORY
+  OTHER
+}
+
+enum LocationType {
+  HOME
+  PARENTS_HOME
+  TRAVEL
+  STORAGE
+  OTHER
+}
+
+enum Condition {
+  NEW
+  EXCELLENT
+  GOOD
+  WORN
+  DAMAGED
+}
+
+enum Visibility {
+  PRIVATE
+  UNLISTED
+  PUBLIC
+}
+
+enum PlanSlot {
+  ALL_DAY
+  MORNING
+  AFTERNOON
+  EVENING
+}
+
+enum Theme {
+  light
+  dark
+  system
+}
+
+model User {
+  id            String             @id @default(uuid())
+  name          String
+  email         String             @unique
+  emailVerified Boolean            @default(false)
+  image         String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  preference    UserPreference?
+  locations     WardrobeLocation[]
+  items         WardrobeItem[]
+  outfits       Outfit[]
+  plans         OutfitPlan[]
+  wearLogs      WearLog[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+model RateLimit {
+  id          String @id @default(uuid())
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+}
+
+model UserPreference {
+  userId            String            @id
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timezone          String            @default("Europe/Paris")
+  theme             Theme             @default(system)
+  defaultLocationId String?
+  defaultLocation   WardrobeLocation? @relation("DefaultLocation", fields: [defaultLocationId, userId], references: [id, userId])
+}
+
+model WardrobeLocation {
+  id          String           @id @default(uuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id])
+  name        String
+  type        LocationType     @default(OTHER)
+  isDefault   Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  archivedAt  DateTime?
+  items       WardrobeItem[]
+  preferences UserPreference[] @relation("DefaultLocation")
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt])
+}
+
+model WardrobeItem {
+  id                 String              @id @default(uuid())
+  userId             String
+  user               User                @relation(fields: [userId], references: [id])
+  locationId         String
+  location           WardrobeLocation    @relation(fields: [locationId, userId], references: [id, userId])
+  name               String
+  category           Category
+  subcategory        String?
+  brand              String?
+  size               String?
+  primaryColor       String?
+  colors             String[]            @default([])
+  seasons            String[]            @default([])
+  status             ItemStatus          @default(AVAILABLE)
+  condition          Condition           @default(GOOD)
+  purchaseDate       DateTime?           @db.Date
+  purchasePriceCents Int?
+  currency           String              @default("EUR")
+  sourceUrl          String?
+  notes              String?
+  favorite           Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  archivedAt         DateTime?
+  images             ItemImage[]
+  variantItems       OutfitVariantItem[]
+  wearItems          WearLogItem[]
+
+  @@unique([id, userId])
+  @@index([userId, locationId, status])
+  @@index([userId, archivedAt])
+}
+
+model ItemImage {
+  id           String       @id @default(uuid())
+  userId       String
+  itemId       String
+  item         WardrobeItem @relation(fields: [itemId, userId], references: [id, userId])
+  key          String       @unique
+  thumbnailKey String       @unique
+  width        Int
+  height       Int
+  createdAt    DateTime     @default(now())
+
+  @@index([userId, itemId])
+}
+
+model Outfit {
+  id          String          @id @default(uuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id])
+  name        String
+  description String?
+  favorite    Boolean         @default(false)
+  visibility  Visibility      @default(PRIVATE)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  archivedAt  DateTime?
+  variants    OutfitVariant[]
+
+  @@unique([id, userId])
+  @@index([userId, archivedAt, favorite])
+}
+
+model OutfitVariant {
+  id           String              @id @default(uuid())
+  userId       String
+  outfitId     String
+  outfit       Outfit              @relation(fields: [outfitId, userId], references: [id, userId])
+  name         String
+  isDefault    Boolean             @default(false)
+  styleTags    String[]            @default([])
+  seasonTags   String[]            @default([])
+  occasionTags String[]            @default([])
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  items        OutfitVariantItem[]
+  plans        OutfitPlan[]
+  wearLogs     WearLog[]
+
+  @@unique([id, userId])
+  @@index([outfitId])
+}
+
+model OutfitVariantItem {
+  userId         String
+  variantId      String
+  wardrobeItemId String
+  variant        OutfitVariant @relation(fields: [variantId, userId], references: [id, userId], onDelete: Cascade)
+  item           WardrobeItem  @relation(fields: [wardrobeItemId, userId], references: [id, userId])
+  sortOrder      Int           @default(0)
+  layout         Json?
+
+  @@id([variantId, wardrobeItemId])
+  @@index([wardrobeItemId])
+}
+
+model OutfitPlan {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  outfitVariantId String
+  variant         OutfitVariant @relation(fields: [outfitVariantId, userId], references: [id, userId])
+  plannedDate     DateTime      @db.Date
+  slot            PlanSlot      @default(ALL_DAY)
+  note            String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  wearLog         WearLog?
+
+  @@unique([id, userId])
+  @@index([userId, plannedDate])
+}
+
+model WearLog {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  outfitVariantId String
+  variant         OutfitVariant @relation(fields: [outfitVariantId, userId], references: [id, userId])
+  wornDate        DateTime      @db.Date
+  sourcePlanId    String?       @unique
+  sourcePlan      OutfitPlan?   @relation(fields: [sourcePlanId, userId], references: [id, userId], onDelete: Restrict)
+  note            String?
+  outfitName      String
+  variantName     String
+  createdAt       DateTime      @default(now())
+  items           WearLogItem[]
+
+  @@unique([id, userId])
+  @@unique([sourcePlanId, userId])
+  @@index([userId, wornDate])
+}
+
+model WearLogItem {
+  userId         String
+  wearLogId      String
+  wardrobeItemId String
+  itemName       String
+  wearLog        WearLog      @relation(fields: [wearLogId, userId], references: [id, userId], onDelete: Cascade)
+  item           WardrobeItem @relation(fields: [wardrobeItemId, userId], references: [id, userId])
+
+  @@id([wearLogId, wardrobeItemId])
+  @@index([wardrobeItemId])
+}
