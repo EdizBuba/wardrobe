@@ -3,6 +3,8 @@ import { privateRoute, readJson,} from "@/lib/http";
 import { AppError, notFound } from "@/lib/errors";
 import {
   idSchema,
+  itemSchema,
+  itemFilterSchema,
 } from "@/modules/wardrobe/domain/schemas";
 import {
   listLocations,
@@ -10,6 +12,12 @@ import {
   archiveLocation,
   locationSchema,
 } from "@/modules/locations/application/service";
+import {
+  listItems,
+  getItem,
+  saveItem,
+  archiveItem,
+} from "@/modules/wardrobe/application/service";
 import {
   getPreferences,
   savePreferences,
@@ -89,6 +97,34 @@ const handler = privateRoute(async (request, userId) => {
     if (method === "DELETE" && id) {
       await archiveLocation(userId, id);
       return empty();
+    }
+  }
+  if (resource === "items") {
+    if (!child) {
+      if (method === "GET")
+        return json(
+          id
+            ? await getItem(userId, id)
+            : await listItems(
+                userId,
+                page,
+                url.searchParams.has("locationId") ? locationId : undefined,
+                itemFilterSchema.parse(Object.fromEntries(url.searchParams)),
+              ),
+        );
+      if (method === "POST" && !id)
+        return json(
+          await saveItem(userId, itemSchema.parse(await readJson(request))),
+          201,
+        );
+      if (method === "PATCH" && id)
+        return json(
+          await saveItem(userId, itemSchema.parse(await readJson(request)), id),
+        );
+      if (method === "DELETE" && id) {
+        await archiveItem(userId, id);
+        return empty();
+      }
     }
   }
   throw new AppError("ENDPOINT_NOT_FOUND", "Route introuvable.", 404);
