@@ -51,6 +51,7 @@ export function ItemForm({
       favorite: item?.favorite ?? false,
     },
   });
+  const [photo, setPhoto] = useState<File>();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [savedId, setSavedId] = useState(item?.id);
@@ -62,6 +63,19 @@ export function ItemForm({
     }
   >(item ? "items/" + item.id : null);
   const displayedItem = detail.data ?? item;
+  async function deletePhoto(id: string) {
+    setPending(true);
+    setError("");
+    try {
+      await api("images/" + id, { method: "DELETE" });
+      detail.reload();
+      onSaved();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPending(false);
+    }
+  }
   async function save(fields: Fields) {
     setPending(true);
     setError("");
@@ -79,11 +93,22 @@ export function ItemForm({
         },
       );
       setSavedId(saved.id);
+      if (photo) {
+        const form = new FormData();
+        form.set("file", photo);
+        await api("items/" + saved.id + "/images", {
+          method: "POST",
+          body: form,
+        });
+      }
       onSaved();
       onClose();
     } catch (e) {
       setError(
-        (e as Error).message,
+        (e as Error).message +
+          (photo
+            ? " Si la pièce est déjà enregistrée, vous pouvez réessayer la photo."
+            : ""),
       );
     } finally {
       setPending(false);
@@ -111,8 +136,42 @@ export function ItemForm({
             <ItemImage item={displayedItem} full />
           </div>
         )}
-        
-        
+        {displayedItem && displayedItem.images.length > 0 && (
+          <div className="inline-actions">
+            {displayedItem.images.map((image, index) => (
+              <Button
+                type="button"
+                key={image.id}
+                variant="outline"
+                size="sm"
+                disabled={pending}
+                onClick={() => deletePhoto(image.id)}
+              >
+                Supprimer la photo {index + 1}
+              </Button>
+            ))}
+          </div>
+        )}
+        <label>
+          Photo <span className="muted">(facultatif)</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file && file.size > 8 * 1024 * 1024) {
+                setError("Maximum 8 Mo par photo.");
+                e.target.value = "";
+                setPhoto(undefined);
+                return;
+              }
+              setPhoto(file);
+            }}
+          />
+          <span className="field-help">
+            JPEG, PNG, WebP ou AVIF, jusqu’à 8 Mo.
+          </span>
+        </label>
         <label>
           Nom de la pièce
           <input

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { privateRoute, readJson,} from "@/lib/http";
+import { privateRoute, readJson, readBoundedBody } from "@/lib/http";
 import { AppError, notFound } from "@/lib/errors";
 import {
   idSchema,
@@ -18,6 +18,11 @@ import {
   saveItem,
   archiveItem,
 } from "@/modules/wardrobe/application/service";
+import {
+  uploadImage,
+  getImage,
+  removeImage,
+} from "@/modules/wardrobe/application/images";
 import {
   getPreferences,
   savePreferences,
@@ -100,6 +105,23 @@ const handler = privateRoute(async (request, userId) => {
     }
   }
   if (resource === "items") {
+    if (method === "POST" && id && child === "images" && !childId) {
+      const bytes = await readBoundedBody(request, 9 * 1024 * 1024);
+      const form = await new Response(bytes, {
+        headers: { "Content-Type": request.headers.get("content-type") ?? "" },
+      })
+        .formData()
+        .catch(() => {
+          throw new AppError("INVALID_FORM", "Formulaire de photo invalide.");
+        });
+      const file = form.get("file");
+      if (!(file instanceof File))
+        throw new AppError("IMAGE_REQUIRED", "Choisissez une photo.");
+      return json(
+        await uploadImage(userId, id, new Uint8Array(await file.arrayBuffer())),
+        201,
+      );
+    }
     if (!child) {
       if (method === "GET")
         return json(
@@ -126,6 +148,24 @@ const handler = privateRoute(async (request, userId) => {
         return empty();
       }
     }
+  }
+  if (resource === "images" && id && !child && method === "GET") {
+    const bytes = await getImage(
+      userId,
+      id,
+      url.searchParams.get("thumbnail") === "1",
+    );
+    return new Response(Buffer.from(bytes), {
+      headers: {
+        "Content-Type": "image/webp",
+        "Content-Disposition": "inline",
+        "Cache-Control": "private, no-store",
+      },
+    });
+  }
+  if (resource === "images" && id && !child && method === "DELETE") {
+    await removeImage(userId, id);
+    return empty();
   }
   throw new AppError("ENDPOINT_NOT_FOUND", "Route introuvable.", 404);
 });
