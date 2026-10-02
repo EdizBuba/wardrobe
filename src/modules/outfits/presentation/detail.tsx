@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { Heart,} from "lucide-react";
+import { Heart, Plus, Copy, Pencil,} from "lucide-react";
 import { useApp } from "@/components/layout/app-shell";
 import { useResource } from "@/components/shared/use-resource";
 import { ResourceState } from "@/components/shared/states";
@@ -14,7 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/shared/dialog";
 import type {
   Outfit,
+  Variant,
 } from "@/modules/shared/presentation/types";
+import { OutfitBuilder } from "./builder";
 import { api, jsonBody } from "@/lib/api-client";
 export function OutfitDetail({ id }: { id: string }) {
   const { locationId, locations, me } = useApp();
@@ -22,6 +24,7 @@ export function OutfitDetail({ id }: { id: string }) {
     `outfits/${id}${locationId ? "?locationId=" + locationId : ""}`,
   );
   const [activeId, setActiveId] = useState("");
+  const [builder, setBuilder] = useState<Variant | "new" | null>(null);
   const [editName, setEditName] = useState(false);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -97,7 +100,26 @@ export function OutfitDetail({ id }: { id: string }) {
           {message}
         </p>
       )}
-      
+      <div className="variant-tabs" role="group" aria-label="Variantes">
+        {outfit.variants.map((v) => (
+          <Button
+            key={v.id}
+            variant={v.id === variant.id ? "default" : "outline"}
+            onClick={() => setActiveId(v.id)}
+          >
+            {v.name}
+            {v.isDefault ? " · principale" : ""}
+          </Button>
+        ))}
+        <Button
+          variant="ghost"
+          onClick={() => setBuilder("new")}
+          disabled={!!outfit.archivedAt}
+        >
+          <Plus size={16} />
+          Variante
+        </Button>
+      </div>
       <div className="detail-columns">
         <section>
           <div className="outfit-composition">
@@ -109,8 +131,28 @@ export function OutfitDetail({ id }: { id: string }) {
             ))}
           </div>
           <div className="inline-actions">
-            
-            
+            <Button
+              variant="outline"
+              onClick={() => setBuilder(variant)}
+              disabled={!!outfit.archivedAt}
+            >
+              <Pencil size={16} />
+              Modifier les pièces
+            </Button>
+            <Button
+              variant="outline"
+              disabled={pending || !!outfit.archivedAt}
+              onClick={() =>
+                run(() =>
+                  api(`outfits/${id}/variants/${variant.id}/clone`, {
+                    method: "POST",
+                  }),
+                )
+              }
+            >
+              <Copy size={16} />
+              Dupliquer
+            </Button>
           </div>
         </section>
         <aside className="panel">
@@ -126,7 +168,14 @@ export function OutfitDetail({ id }: { id: string }) {
           />
         </aside>
       </div>
-      
+      {builder && (
+        <OutfitBuilder
+          outfit={outfit}
+          variant={builder === "new" ? undefined : builder}
+          onSaved={resource.reload}
+          onClose={() => setBuilder(null)}
+        />
+      )}
       
       {editName && (
         <Dialog title="Modifier la tenue" onClose={() => setEditName(false)}>

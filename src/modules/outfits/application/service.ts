@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { notFound } from "@/lib/errors";
+import { notFound, AppError } from "@/lib/errors";
 import { idSchema, tags } from "@/modules/wardrobe/domain/schemas";
 import { variantAvailability } from "@/modules/wardrobe/domain/availability";
 import type { Prisma } from "@/generated/prisma/client";
@@ -177,4 +177,81 @@ export async function archiveOutfit(userId: string, id: string) {
     data: { archivedAt: new Date() },
   });
   if (!result.count) notFound("OUTFIT");
+}
+export async function saveVariant(
+  userId: string,
+  outfitId: string,
+  input: z.infer<typeof variantSchema>,
+  id?: string,
+) {
+  return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Outfit" WHERE id = ${outfitId} AND "userId" = ${userId} FOR UPDATE`;
+    if (
+      !(await tx.outfit.findFirst({
+        where: { id: outfitId, userId, archivedAt: null },
+      }))
+    )
+      notFound("OUTFIT");
+    const existing = id
+      ? await tx.outfitVariant.findFirst({ where: { id, outfitId, userId } })
+      : null;
+    if (id && !existing) notFound("VARIANT");
+    if (
+      (await tx.wardrobeItem.count({
+        where: { userId, id: { in: input.itemIds }, archivedAt: null },
+      })) !== input.itemIds.length
+    )
+      notFound("WARDROBE_ITEM");
+    const { itemIds, ...data } = input;
+    if (data.isDefault)
+      await tx.outfitVariant.updateMany({
+        where: { outfitId, userId },
+        data: { isDefault: false },
+      });
+    data.isDefault = data.isDefault || !!existing?.isDefault;
+    if (id) {
+      await tx.outfitVariantItem.deleteMany({
+        where: { variantId: id, userId },
+      });
+    }
+    const saved = id
+      ? await tx.outfitVariant.update({
+          where: { id_userId: { id, userId } },
+          data,
+        })
+      : await tx.outfitVariant.create({ data: { ...data, outfitId, userId } });
+    await tx.outfitVariantItem.createMany({
+      data: itemIds.map((wardrobeItemId, sortOrder) => ({
+        userId,
+        variantId: saved.id,
+        wardrobeItemId,
+        sortOrder,
+      })),
+    });
+    return saved;
+  });
+}
+export async function cloneVariant(
+  userId: string,
+  outfitId: string,
+  variantId: string,
+) {
+  const source = await db.outfitVariant.findFirst({
+    where: { id: variantId, outfitId, userId },
+    include: { items: true },
+  });
+  if (!source) notFound("VARIANT");
+  if (!source.items.length)
+    throw new AppError(
+      "EMPTY_VARIANT",
+      "Cette variante ne contient aucune pièce.",
+    );
+  return saveVariant(userId, outfitId, {
+    name: source.name + " (copie)",
+    isDefault: false,
+    itemIds: source.items.map((i) => i.wardrobeItemId),
+    styleTags: source.styleTags,
+    seasonTags: source.seasonTags,
+    occasionTags: source.occasionTags,
+  });
 }

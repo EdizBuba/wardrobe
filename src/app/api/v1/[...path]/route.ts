@@ -29,8 +29,11 @@ import {
   createOutfit,
   updateOutfit,
   archiveOutfit,
+  saveVariant,
+  cloneVariant,
   outfitSchema,
   outfitUpdateSchema,
+  variantSchema,
   outfitFilterSchema,
 } from "@/modules/outfits/application/service";
 import {
@@ -210,6 +213,28 @@ const handler = privateRoute(async (request, userId) => {
         await archiveOutfit(userId, id);
         return empty();
       }
+    }
+    if (id && child === "variants") {
+      if (method === "POST" && childId && path[4] === "clone")
+        return json(await cloneVariant(userId, id, childId), 201);
+      if (method === "POST" && !childId)
+        return json(
+          await saveVariant(
+            userId,
+            id,
+            variantSchema.parse(await readJson(request)),
+          ),
+          201,
+        );
+      if (method === "PATCH" && childId)
+        return json(
+          await saveVariant(
+            userId,
+            id,
+            variantSchema.parse(await readJson(request)),
+            childId,
+          ),
+        );
     }
   }
   throw new AppError("ENDPOINT_NOT_FOUND", "Route introuvable.", 404);
