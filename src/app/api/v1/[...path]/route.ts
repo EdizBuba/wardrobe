@@ -24,6 +24,16 @@ import {
   removeImage,
 } from "@/modules/wardrobe/application/images";
 import {
+  listOutfits,
+  getOutfit,
+  createOutfit,
+  updateOutfit,
+  archiveOutfit,
+  outfitSchema,
+  outfitUpdateSchema,
+  outfitFilterSchema,
+} from "@/modules/outfits/application/service";
+import {
   getPreferences,
   savePreferences,
   preferenceSchema,
@@ -166,6 +176,41 @@ const handler = privateRoute(async (request, userId) => {
   if (resource === "images" && id && !child && method === "DELETE") {
     await removeImage(userId, id);
     return empty();
+  }
+  if (resource === "outfits") {
+    if (!child) {
+      if (method === "GET")
+        return json(
+          id
+            ? await getOutfit(userId, id, locationId)
+            : await listOutfits(
+                userId,
+                locationId,
+                page,
+                outfitFilterSchema.parse(Object.fromEntries(url.searchParams)),
+              ),
+        );
+      if (method === "POST" && !id)
+        return json(
+          await createOutfit(
+            userId,
+            outfitSchema.parse(await readJson(request)),
+          ),
+          201,
+        );
+      if (method === "PATCH" && id) {
+        await updateOutfit(
+          userId,
+          id,
+          outfitUpdateSchema.parse(await readJson(request)),
+        );
+        return empty();
+      }
+      if (method === "DELETE" && id) {
+        await archiveOutfit(userId, id);
+        return empty();
+      }
+    }
   }
   throw new AppError("ENDPOINT_NOT_FOUND", "Route introuvable.", 404);
 });
