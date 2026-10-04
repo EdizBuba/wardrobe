@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { Heart, Plus, Copy, Pencil,} from "lucide-react";
+import { Heart, Plus, Copy, Pencil, CalendarDays,} from "lucide-react";
 import { useApp } from "@/components/layout/app-shell";
 import { useResource } from "@/components/shared/use-resource";
 import { ResourceState } from "@/components/shared/states";
@@ -17,6 +17,7 @@ import type {
   Variant,
 } from "@/modules/shared/presentation/types";
 import { OutfitBuilder } from "./builder";
+import { PlanForm } from "@/modules/planner/presentation/plan-form";
 import { api, jsonBody } from "@/lib/api-client";
 export function OutfitDetail({ id }: { id: string }) {
   const { locationId, locations, me } = useApp();
@@ -25,6 +26,7 @@ export function OutfitDetail({ id }: { id: string }) {
   );
   const [activeId, setActiveId] = useState("");
   const [builder, setBuilder] = useState<Variant | "new" | null>(null);
+  const [planning, setPlanning] = useState(false);
   const [editName, setEditName] = useState(false);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -86,7 +88,13 @@ export function OutfitDetail({ id }: { id: string }) {
           <Button variant="outline" onClick={() => setEditName(true)}>
             Modifier
           </Button>
-          
+          <Button
+            onClick={() => setPlanning(true)}
+            disabled={!!outfit.archivedAt}
+          >
+            <CalendarDays size={17} />
+            Planifier
+          </Button>
         </div>
       </div>
       {outfit.archivedAt && <p className="notice">Cette tenue est archivée.</p>}
@@ -176,7 +184,13 @@ export function OutfitDetail({ id }: { id: string }) {
           onClose={() => setBuilder(null)}
         />
       )}
-      
+      {planning && (
+        <PlanForm
+          defaultVariantId={variant.id}
+          onSaved={() => setMessage("Tenue planifiée.")}
+          onClose={() => setPlanning(false)}
+        />
+      )}
       {editName && (
         <Dialog title="Modifier la tenue" onClose={() => setEditName(false)}>
           <form

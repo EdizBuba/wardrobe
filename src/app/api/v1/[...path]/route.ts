@@ -37,10 +37,20 @@ import {
   outfitFilterSchema,
 } from "@/modules/outfits/application/service";
 import {
+  listPlans,
+  savePlan,
+  removePlan,
+  planSchema,
+} from "@/modules/planner/application/service";
+import {
   getPreferences,
   savePreferences,
   preferenceSchema,
 } from "@/modules/users/application/service";
+import {
+  calendarDate,
+  dateInTimezone,
+} from "@/modules/planner/domain/calendar";
 import { db } from "@/lib/db";
 const json = (data: unknown, status = 200) =>
   Response.json({ data }, { status });
@@ -235,6 +245,39 @@ const handler = privateRoute(async (request, userId) => {
             childId,
           ),
         );
+    }
+  }
+  if (resource === "plans" && !child) {
+    if (method === "GET") {
+      const from = calendarDate.parse(
+        url.searchParams.get("from") ?? dateInTimezone(preference.timezone),
+      );
+      const to = calendarDate.parse(url.searchParams.get("to") ?? from);
+      if (to < from || Date.parse(to) - Date.parse(from) > 366 * 86400000)
+        throw new AppError(
+          "DATE_RANGE",
+          "Choisissez une période de moins d’un an.",
+        );
+      const result = await listPlans(userId, locationId, from, to);
+      if (id) {
+        const plan = await db.outfitPlan.findFirst({ where: { id, userId } });
+        if (!plan) notFound("PLAN");
+        return json(plan);
+      }
+      return json(result);
+    }
+    if (method === "POST" && !id)
+      return json(
+        await savePlan(userId, planSchema.parse(await readJson(request))),
+        201,
+      );
+    if (method === "PATCH" && id)
+      return json(
+        await savePlan(userId, planSchema.parse(await readJson(request)), id),
+      );
+    if (method === "DELETE" && id) {
+      await removePlan(userId, id);
+      return empty();
     }
   }
   throw new AppError("ENDPOINT_NOT_FOUND", "Route introuvable.", 404);
