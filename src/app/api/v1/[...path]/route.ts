@@ -43,6 +43,11 @@ import {
   planSchema,
 } from "@/modules/planner/application/service";
 import {
+  listHistory,
+  markWorn,
+  wearSchema,
+} from "@/modules/wear-history/application/service";
+import {
   getPreferences,
   savePreferences,
   preferenceSchema,
@@ -279,6 +284,24 @@ const handler = privateRoute(async (request, userId) => {
       await removePlan(userId, id);
       return empty();
     }
+  }
+  if (resource === "history" && !child) {
+    if (method === "GET") {
+      if (id) {
+        const log = await db.wearLog.findFirst({
+          where: { id, userId },
+          include: { items: true },
+        });
+        if (!log) notFound("WEAR_LOG");
+        return json(log);
+      }
+      return json(await listHistory(userId, page));
+    }
+    if (method === "POST" && !id)
+      return json(
+        await markWorn(userId, wearSchema.parse(await readJson(request))),
+        201,
+      );
   }
   throw new AppError("ENDPOINT_NOT_FOUND", "Route introuvable.", 404);
 });

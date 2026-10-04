@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { Heart, Plus, Copy, Pencil, CalendarDays,} from "lucide-react";
+import { Heart, Plus, Copy, Pencil, CalendarDays, Check } from "lucide-react";
 import { useApp } from "@/components/layout/app-shell";
 import { useResource } from "@/components/shared/use-resource";
 import { ResourceState } from "@/components/shared/states";
@@ -15,15 +15,18 @@ import { Dialog } from "@/components/shared/dialog";
 import type {
   Outfit,
   Variant,
+  WearLog,
 } from "@/modules/shared/presentation/types";
 import { OutfitBuilder } from "./builder";
 import { PlanForm } from "@/modules/planner/presentation/plan-form";
 import { api, jsonBody } from "@/lib/api-client";
+import { dateInTimezone } from "@/modules/planner/domain/calendar";
 export function OutfitDetail({ id }: { id: string }) {
   const { locationId, locations, me } = useApp();
   const resource = useResource<Outfit>(
     `outfits/${id}${locationId ? "?locationId=" + locationId : ""}`,
   );
+  const history = useResource<WearLog[]>("history");
   const [activeId, setActiveId] = useState("");
   const [builder, setBuilder] = useState<Variant | "new" | null>(null);
   const [planning, setPlanning] = useState(false);
@@ -41,6 +44,7 @@ export function OutfitDetail({ id }: { id: string }) {
     try {
       await action();
       resource.reload();
+      history.reload();
       setMessage(success);
     } catch (e) {
       setError((e as Error).message);
@@ -174,6 +178,45 @@ export function OutfitDetail({ id }: { id: string }) {
             availability={variant.availability}
             locations={locations}
           />
+          <hr />
+          <h3>Vous l’avez portée ?</h3>
+          <p className="muted small">
+            Ajoutez cette tenue à votre historique d’aujourd’hui.
+          </p>
+          <Button
+            disabled={pending}
+            onClick={() =>
+              run(
+                () =>
+                  api("history", {
+                    method: "POST",
+                    body: jsonBody({
+                      outfitVariantId: variant.id,
+                      wornDate: dateInTimezone(me!.preference.timezone),
+                    }),
+                  }),
+                "Tenue ajoutée à l’historique.",
+              )
+            }
+          >
+            <Check size={17} />
+            Marquer comme portée
+          </Button>
+          <hr />
+          <h3>Dernières fois</h3>
+          {history.data
+            ?.filter((l) =>
+              outfit.variants.some((v) => v.id === l.outfitVariantId),
+            )
+            .slice(0, 5)
+            .map((l) => (
+              <p className="small" key={l.id}>
+                {l.wornDate.slice(0, 10)} · {l.variantName}
+              </p>
+            ))}
+          <Link href="/history" className="text-link">
+            Voir l’historique →
+          </Link>
         </aside>
       </div>
       {builder && (

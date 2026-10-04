@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Check, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Composition,
@@ -10,8 +10,9 @@ import {
 } from "@/components/shared/visuals";
 import { useApp } from "@/components/layout/app-shell";
 import type { Plan } from "@/modules/shared/presentation/types";
-import { api,} from "@/lib/api-client";
+import { api, jsonBody } from "@/lib/api-client";
 import { slots } from "@/config/labels";
+import { dateInTimezone } from "@/modules/planner/domain/calendar";
 export function PlanCard({
   plan,
   onChange,
@@ -64,7 +65,24 @@ export function PlanCard({
         )}
         {plan.note && <p>{plan.note}</p>}
         <div className="inline-actions">
-          
+          <Button
+            disabled={pending || !!plan.wearLog}
+            onClick={() =>
+              run(() =>
+                api("history", {
+                  method: "POST",
+                  body: jsonBody({
+                    outfitVariantId: plan.outfitVariantId,
+                    sourcePlanId: plan.id,
+                    wornDate: dateInTimezone(me!.preference.timezone),
+                  }),
+                }),
+              )
+            }
+          >
+            <Check size={16} />
+            {plan.wearLog ? "Déjà portée" : "Marquer comme portée"}
+          </Button>
           {!plan.wearLog && (
             <Button variant="outline" disabled={pending} onClick={onEdit}>
               <Pencil size={16} />
