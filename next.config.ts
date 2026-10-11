@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
+  output: "standalone",
+  serverExternalPackages: ["sharp"],
+  outputFileTracingIncludes: {
+    "/api/v1/*": ["./node_modules/.pnpm/@img+sharp-*/node_modules/@img/**"],
+  },
   async headers() {
     return [
       {
