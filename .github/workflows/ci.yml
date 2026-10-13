@@ -64,6 +64,7 @@ jobs:
           digest=$(find prisma/migrations -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d ' ' -f 1)
           docker build --pull --target runner --build-arg VCS_REF="$GITHUB_SHA" -t "ghcr.io/edizbuba/wardrobe:$GITHUB_SHA" .
           docker build --target migrate --build-arg VCS_REF="$GITHUB_SHA" --build-arg MIGRATIONS_DIGEST="$digest" -t "ghcr.io/edizbuba/wardrobe-migrate:$GITHUB_SHA" .
+          bash scripts/production/smoke-images.sh "$GITHUB_SHA"
           docker push "ghcr.io/edizbuba/wardrobe:$GITHUB_SHA"
           docker push "ghcr.io/edizbuba/wardrobe-migrate:$GITHUB_SHA"
   deploy:
