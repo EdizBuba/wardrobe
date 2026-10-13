@@ -77,12 +77,14 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: read
+      packages: read
     steps:
       - name: Deploy through restricted SSH account
         env:
           DEPLOY_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
           DEPLOY_PASSPHRASE: ${{ secrets.PRODUCTION_SSH_PASSPHRASE }}
           KNOWN_HOSTS: ${{ vars.PRODUCTION_SSH_KNOWN_HOSTS }}
+          GHCR_READ_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           test -n "$DEPLOY_KEY" && test -n "$DEPLOY_PASSPHRASE" && test -n "$KNOWN_HOSTS"
@@ -97,4 +99,4 @@ jobs:
           eval "$(ssh-agent -s)"
           trap 'ssh-agent -k >/dev/null; rm -rf -- "$RUNNER_TEMP/wardrobe-ssh"' EXIT
           DISPLAY=:0 SSH_ASKPASS_REQUIRE=force SSH_ASKPASS="$RUNNER_TEMP/wardrobe-ssh/askpass" ssh-add "$key" </dev/null
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/wardrobe-ssh/known_hosts" -o IdentitiesOnly=yes -i "$key" wardrobe-deploy@51.68.243.77 "deploy $GITHUB_SHA"
+          printf '%s\n' "$GHCR_READ_TOKEN" | ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/wardrobe-ssh/known_hosts" -o IdentitiesOnly=yes -i "$key" wardrobe-deploy@51.68.243.77 "deploy $GITHUB_SHA"

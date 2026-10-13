@@ -10,7 +10,21 @@ export APP_VERSION=$release
 export APP_IMAGE=ghcr.io/edizbuba/wardrobe MIGRATION_IMAGE=ghcr.io/edizbuba/wardrobe-migrate
 compose config --quiet
 # Both application and migration images must come from this release.
-compose pull app migrate
+# CI passes its short-lived, read-only GHCR token on stdin, never in arguments.
+# Manual rollback can reuse cached SHA images without a persistent registry token.
+registry_token=''
+if [[ ! -t 0 ]]; then IFS= read -r registry_token || true; fi
+if [[ -n $registry_token ]]; then
+  DOCKER_CONFIG=$(mktemp -d /run/wardrobe-registry.XXXXXX)
+  export DOCKER_CONFIG
+  cleanup_registry() {
+    if [[ $DOCKER_CONFIG =~ ^/run/wardrobe-registry\.[A-Za-z0-9]+$ && ! -L $DOCKER_CONFIG ]]; then rm -rf -- "$DOCKER_CONFIG"; fi
+  }
+  trap cleanup_registry EXIT
+  printf '%s' "$registry_token" | docker login ghcr.io -u EdizBuba --password-stdin >/dev/null
+  unset registry_token
+  compose pull app migrate
+fi
 for image in "ghcr.io/edizbuba/wardrobe:$release" "ghcr.io/edizbuba/wardrobe-migrate:$release"; do
   revision=$(docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')
   [[ $revision == "$release" ]] || { echo 'Image revision does not match requested release.' >&2; exit 1; }
