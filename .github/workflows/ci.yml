@@ -2,6 +2,8 @@ name: CI
 on:
   push:
   pull_request:
+permissions:
+  contents: read
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -43,3 +45,55 @@ jobs:
           path: |
             playwright-report
             test-results
+  images:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Publish immutable application and migration images
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          trap 'docker logout ghcr.io' EXIT
+          digest=$(find prisma/migrations -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d ' ' -f 1)
+          docker build --pull --target runner --build-arg VCS_REF="$GITHUB_SHA" -t "ghcr.io/edizbuba/wardrobe:$GITHUB_SHA" .
+          docker build --target migrate --build-arg VCS_REF="$GITHUB_SHA" --build-arg MIGRATIONS_DIGEST="$digest" -t "ghcr.io/edizbuba/wardrobe-migrate:$GITHUB_SHA" .
+          docker push "ghcr.io/edizbuba/wardrobe:$GITHUB_SHA"
+          docker push "ghcr.io/edizbuba/wardrobe-migrate:$GITHUB_SHA"
+  deploy:
+    needs: images
+    if: vars.PRODUCTION_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: wardrobe-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - name: Deploy through restricted SSH account
+        env:
+          DEPLOY_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          DEPLOY_PASSPHRASE: ${{ secrets.PRODUCTION_SSH_PASSPHRASE }}
+          KNOWN_HOSTS: ${{ vars.PRODUCTION_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_KEY" && test -n "$DEPLOY_PASSPHRASE" && test -n "$KNOWN_HOSTS"
+          umask 077
+          mkdir -p "$RUNNER_TEMP/wardrobe-ssh"
+          key="$RUNNER_TEMP/wardrobe-ssh/key"
+          printf '%s\n' "$DEPLOY_KEY" > "$key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$RUNNER_TEMP/wardrobe-ssh/known_hosts"
+          # The key remains encrypted on disk; its passphrase is supplied to the agent.
+          printf '#!/bin/sh\nprintf "%%s\\n" "$DEPLOY_PASSPHRASE"\n' > "$RUNNER_TEMP/wardrobe-ssh/askpass"
+          chmod 700 "$RUNNER_TEMP/wardrobe-ssh/askpass"
+          eval "$(ssh-agent -s)"
+          trap 'ssh-agent -k >/dev/null; rm -rf -- "$RUNNER_TEMP/wardrobe-ssh"' EXIT
+          DISPLAY=:0 SSH_ASKPASS_REQUIRE=force SSH_ASKPASS="$RUNNER_TEMP/wardrobe-ssh/askpass" ssh-add "$key" </dev/null
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/wardrobe-ssh/known_hosts" -o IdentitiesOnly=yes -i "$key" wardrobe-deploy@51.68.243.77 "deploy $GITHUB_SHA"

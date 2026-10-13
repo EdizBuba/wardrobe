@@ -1,0 +1,10 @@
+[Unit]
+Description=Nightly Wardrobe backups
+
+[Timer]
+OnCalendar=*-*-* 03:17:00 Europe/Paris
+RandomizedDelaySec=20m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

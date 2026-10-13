@@ -1,0 +1,8 @@
+[Unit]
+Description=Wardrobe host, container, disk and backup checks
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/containers/wardrobe/scripts/status.sh
+UMask=0077

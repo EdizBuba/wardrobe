@@ -1,0 +1,9 @@
+[Unit]
+Description=Consistent Wardrobe database and private media backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/containers/wardrobe/scripts/backup.sh
+UMask=0077
