@@ -64,7 +64,7 @@ Wardrobe est disponible sur https://wardrobe.ediz-buba.com. L'application tourne
 
 Une fusion dans `main` lance les contrôles CI, construit des images Docker identifiées par le commit et, si les contrôles passent, déploie la version. Les migrations de production utilisent `prisma migrate deploy`. Le seed de développement ne doit jamais être lancé sur le VPS.
 
-Les vérifications réalisées sont dans [docs/implementation-status.md](docs/implementation-status.md). Les fonctions de partage, les statistiques avancées et le fonctionnement hors ligne ne font pas partie de cette version.
+Les détails de déploiement, de sauvegarde et de restauration se trouvent dans [docs/deployment.md](docs/deployment.md). Les vérifications réalisées sont dans [docs/implementation-status.md](docs/implementation-status.md). Les fonctions de partage, les statistiques avancées et le fonctionnement hors ligne ne font pas partie de cette version.
 
 ## Auteur
 
