@@ -1,0 +1,6 @@
+wardrobe.ediz-buba.com {
+    encode zstd gzip
+    header Strict-Transport-Security "max-age=31536000"
+    reverse_proxy wardrobe-app:3000
+    # Access logs are intentionally disabled: verification URLs contain tokens.
+}

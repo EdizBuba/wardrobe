@@ -1,0 +1,8 @@
+{
+    # Only TCP 80/443 is published. Disable HTTP/3 advertisement.
+    servers {
+        protocols h1 h2
+    }
+}
+
+import /etc/caddy/sites/*.caddy

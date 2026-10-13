@@ -5,6 +5,7 @@ node_modules
 .env.*
 media
 .local
+backups
 test-results
 playwright-report
 coverage

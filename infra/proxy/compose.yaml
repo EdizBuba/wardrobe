@@ -1,0 +1,27 @@
+name: edge
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./sites:/etc/caddy/sites:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [wardrobe]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+    pids_limit: 100
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+networks:
+  wardrobe:
+    name: wardrobe_proxy
+    external: true
+volumes:
+  caddy_data:
+  caddy_config:

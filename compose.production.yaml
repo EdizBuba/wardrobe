@@ -1,3 +1,9 @@
+name: wardrobe
+x-logging: &logging
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "3"
 services:
   postgres:
     image: postgres:18
@@ -8,23 +14,37 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql
+    networks: [backend]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U wardrobe -d wardrobe"]
       interval: 10s
       timeout: 5s
       retries: 10
+    shm_size: 128m
+    mem_limit: 768m
+    pids_limit: 200
+    security_opt: ["no-new-privileges:true"]
+    logging: *logging
   migrate:
+    image: ${MIGRATION_IMAGE:?Set MIGRATION_IMAGE}:${APP_VERSION:?Set APP_VERSION}
     build:
       context: .
       target: migrate
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+    networks: [backend]
     depends_on:
       postgres:
         condition: service_healthy
     restart: "no"
+    mem_limit: 512m
+    pids_limit: 100
+    cpus: 1
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    logging: *logging
   app:
-    image: wardrobe:${APP_VERSION:-local}
+    image: ${APP_IMAGE:?Set APP_IMAGE}:${APP_VERSION:?Set APP_VERSION}
     build:
       context: .
       target: runner
@@ -33,35 +53,36 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET}
-      BETTER_AUTH_URL: https://${DOMAIN:?Set DOMAIN}
+      BETTER_AUTH_URL: https://wardrobe.ediz-buba.com
       EMAIL_PROVIDER: smtp
       SMTP_URL: ${SMTP_URL:?Set SMTP_URL}
       EMAIL_FROM: ${EMAIL_FROM:?Set EMAIL_FROM}
     volumes:
       - media:/app/media
+      - next_cache:/app/.next/cache
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m,uid=1000,gid=1000"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks:
+      backend:
+      proxy:
+        aliases: [wardrobe-app]
     depends_on:
-      migrate:
-        condition: service_completed_successfully
-    expose:
-      - "3000"
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
-    environment:
-      DOMAIN: ${DOMAIN:?Set DOMAIN}
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      app:
+      postgres:
         condition: service_healthy
+    expose: ["3000"]
+    mem_limit: 1536m
+    cpus: 2
+    pids_limit: 200
+    logging: *logging
+networks:
+  backend:
+    internal: true
+  proxy:
+    name: wardrobe_proxy
+    external: true
 volumes:
   postgres_data:
   media:
-  caddy_data:
-  caddy_config:
+  next_cache:
