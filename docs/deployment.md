@@ -16,7 +16,7 @@ Pour un déploiement manuel d'une image déjà disponible sur le VPS :
 
 ## Sauvegarde et restauration
 
-Les sauvegardes nocturnes incluent PostgreSQL et les photos ; sept copies sont gardées sur le VPS.
+Les sauvegardes nocturnes incluent PostgreSQL et les photos ; sept copies sont gardées sur le VPS. Une tâche Windows envoie une copie chiffrée vers le dépôt restic du PC si celui-ci est allumé, la session ouverte et la clé SSH disponible. Si le PC est éteint, la copie reprend à la prochaine ouverture de session. Aucune destination S3/SFTP indépendante n'est configurée.
 
 Pour vérifier une sauvegarde sans toucher aux données en production :
 

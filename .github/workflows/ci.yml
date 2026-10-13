@@ -33,6 +33,15 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm lint
       - run: pnpm typecheck
+      - name: Validate production administration tools
+        run: |
+          for script in scripts/production/*.sh; do bash -n "$script"; done
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          for path in Path('scripts/production').glob('*.py'):
+              ast.parse(path.read_text(), filename=str(path))
+          PY
       - run: pnpm test
       - run: pnpm test:integration
       - run: pnpm build
@@ -105,3 +114,4 @@ jobs:
           trap 'ssh-agent -k >/dev/null; rm -rf -- "$RUNNER_TEMP/wardrobe-ssh"' EXIT
           DISPLAY=:0 SSH_ASKPASS_REQUIRE=force SSH_ASKPASS="$RUNNER_TEMP/wardrobe-ssh/askpass" ssh-add "$key" </dev/null
           printf '%s\n' "$GHCR_READ_TOKEN" | ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$RUNNER_TEMP/wardrobe-ssh/known_hosts" -o IdentitiesOnly=yes -i "$key" wardrobe-deploy@51.68.243.77 "deploy $GITHUB_SHA"
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 --max-time 15 https://wardrobe.ediz-buba.com/api/health
