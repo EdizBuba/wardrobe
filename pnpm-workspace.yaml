@@ -1,3 +1,9 @@
+overrides:
+  # Prisma 7.10 pins the vulnerable merger; retain Prisma's stable public API.
+  "@prisma/config>deepmerge-ts": "8.0.2"
+  # Fix auth-plugin downgrade and compressed-protocol DoS advisories.
+  mysql2: "3.24.6"
+
 allowBuilds:
   "@prisma/engines": true
   prisma: true
