@@ -1,0 +1,14 @@
+[Unit]
+Description=Restrict Docker ingress to public HTTP and HTTPS
+Requires=docker.service
+After=docker.service ufw.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/wardrobe-docker-firewall
+ExecReload=/usr/local/sbin/wardrobe-docker-firewall
+
+[Install]
+WantedBy=docker.service

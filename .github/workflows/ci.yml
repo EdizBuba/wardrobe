@@ -42,6 +42,8 @@ jobs:
           for path in Path('scripts/production').glob('*.py'):
               ast.parse(path.read_text(), filename=str(path))
           PY
+      - name: Test Docker firewall with isolated IPv4 and IPv6 traffic
+        run: sudo bash scripts/production/test-docker-firewall.sh
       - run: pnpm test
       - run: pnpm test:integration
       - run: pnpm build
