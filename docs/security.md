@@ -7,3 +7,5 @@ Chaque route privée vérifie la session et filtre les données par userId. Les 
 Les photos sont limitées, vérifiées et converties en WebP sans métadonnées. Elles restent privées et leur lecture vérifie le propriétaire.
 
 Les secrets et fichiers .env restent hors de Git. PostgreSQL et Next.js ne sont pas exposés ; seul Caddy publie les ports web 80 et 443.
+
+Les sauvegardes hors VPS dépendent du PC Windows et ne remplacent pas une destination indépendante toujours disponible.
