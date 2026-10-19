@@ -6,7 +6,7 @@ Docker Compose sépare Caddy de Wardrobe. Seul le proxy publie les ports 80 et 4
 
 ## Mise en production
 
-La CI construit les images de l'application et des migrations pour le SHA validé, puis les publie dans GHCR. Un compte SSH limité lance le déploiement.
+La branche main est protégée par une pull request et le contrôle verify. La CI construit les images de l'application et des migrations pour le SHA validé, puis les publie dans GHCR. Un compte SSH limité lance le déploiement.
 
 Le déploiement vérifie les migrations, sauvegarde la base et les photos, exécute prisma migrate deploy et contrôle la santé de l'application. Une nouvelle empreinte de migration doit être approuvée par l'administrateur. Le seed et prisma db push ne sont jamais utilisés en production. Une migration incompatible exige une procédure de maintenance séparée.
 
