@@ -1,6 +1,6 @@
 # Déploiement
 
-Wardrobe tourne sur un VPS OVHcloud Ubuntu 26.04 à l'adresse https://wardrobe.ediz-buba.com. Seul le sous-domaine wardrobe pointe vers ce serveur ; le portfolio reste hébergé à part.
+Wardrobe tourne sur un VPS OVHcloud Ubuntu 26.04 à l'adresse https://wardrobe.ediz-buba.com. Le sous-domaine wardrobe et le portfolio (ediz-buba.com, www) pointent vers ce serveur ; Caddy sert les deux.
 
 Docker Compose sépare Caddy de Wardrobe. Seul le proxy publie les ports 80 et 443 ; PostgreSQL et l'application restent sur le réseau privé. Caddy redirige HTTP vers HTTPS et renouvelle le certificat. La base et les photos utilisent des volumes persistants. Le fichier d'environnement de production reste sur le serveur, hors de Git.
 

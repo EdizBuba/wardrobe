@@ -60,7 +60,7 @@ Les tests d'intégration et le parcours navigateur ont besoin de PostgreSQL. L'i
 
 ## Production
 
-Wardrobe est disponible sur https://wardrobe.ediz-buba.com. L'application tourne sur un VPS OVHcloud. Caddy fournit HTTPS ; PostgreSQL et les photos restent sur des volumes persistants privés. Le portfolio principal continue d'être hébergé séparément sur GitHub Pages.
+Wardrobe est disponible sur https://wardrobe.ediz-buba.com. L'application tourne sur un VPS OVHcloud. Caddy fournit HTTPS ; PostgreSQL et les photos restent sur des volumes persistants privés. Le portfolio principal (ediz-buba.com) est un site statique servi par le même Caddy.
 
 Une fusion dans `main` lance les contrôles CI, construit des images Docker identifiées par le commit et, si les contrôles passent, déploie la version. Les migrations de production utilisent `prisma migrate deploy`. Le seed de développement ne doit jamais être lancé sur le VPS.
 
