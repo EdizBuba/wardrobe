@@ -80,7 +80,7 @@ networks:
   backend:
     internal: true
   proxy:
-    name: wardrobe_proxy
+    name: edge
     external: true
 volumes:
   postgres_data:

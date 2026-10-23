@@ -40,7 +40,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--directory', type=Path, required=True)
     parser.add_argument('--restic', type=Path, required=True)
-    parser.add_argument('--ssh-host', default='wardrobe-vps')
+    parser.add_argument('--ssh-host', default='ovh-vps')
     args = parser.parse_args()
     directory = args.directory.absolute()
     protect_check(directory)

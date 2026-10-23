@@ -9,7 +9,7 @@ services:
       - ./sites:/etc/caddy/sites:ro
       - caddy_data:/data
       - caddy_config:/config
-    networks: [wardrobe]
+    networks: [edge]
     security_opt: ["no-new-privileges:true"]
     mem_limit: 256m
     pids_limit: 100
@@ -19,8 +19,8 @@ services:
         max-size: "10m"
         max-file: "3"
 networks:
-  wardrobe:
-    name: wardrobe_proxy
+  edge:
+    name: edge
     external: true
 volumes:
   caddy_data:
