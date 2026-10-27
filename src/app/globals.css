@@ -205,6 +205,34 @@ textarea {
   color: var(--foreground);
   padding: 10px 12px;
 }
+.password-field {
+  position: relative;
+  display: block;
+}
+.password-field input {
+  padding-right: 48px;
+}
+.password-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 100%;
+  border: 0;
+  border-radius: 0 8px 8px 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.password-toggle:hover {
+  color: var(--foreground);
+}
+.password-toggle:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: -3px;
+}
 input[type="checkbox"] {
   width: 18px;
   height: 18px;
@@ -226,7 +254,8 @@ textarea {
   min-height: 90px;
   resize: vertical;
 }
-label {
+label,
+.field {
   display: flex;
   flex-direction: column;
   gap: 7px;

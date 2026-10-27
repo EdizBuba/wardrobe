@@ -6,6 +6,7 @@ import { Layers, ArrowRight } from "lucide-react";
 import { authClient } from "../client";
 import { product } from "@/config/product";
 import { Button } from "@/components/ui/button";
+import { PasswordInput } from "@/components/ui/password-input";
 export function AuthForm({
   mode,
 }: {
@@ -131,11 +132,11 @@ export function AuthForm({
               </label>
             )}
             {mode !== "forgot" && (
-              <label>
-                Mot de passe
-                <input
+              <div className="field">
+                <label htmlFor="password">Mot de passe</label>
+                <PasswordInput
+                  id="password"
                   name="password"
-                  type="password"
                   required
                   minLength={mode === "login" ? 1 : 12}
                   maxLength={128}
@@ -146,7 +147,7 @@ export function AuthForm({
                 <span className="field-help">
                   {mode !== "login" ? "Au moins 12 caractères." : ""}
                 </span>
-              </label>
+              </div>
             )}
             {error && (
               <p className="error" role="alert">
