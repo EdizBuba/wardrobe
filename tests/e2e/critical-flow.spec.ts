@@ -22,7 +22,7 @@ test("fresh user: register, locations, photos, outfits, variant, plan, Today, we
   await page.goto("/register");
   await page.getByLabel("Votre prénom").fill("Alex");
   await page.getByLabel("Adresse e-mail").fill(email);
-  await page.getByLabel("Mot de passe").fill(password);
+  await page.getByLabel("Mot de passe", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Créer mon compte" }).click();
   await expect(page).toHaveURL(/today/);
   await expect(
@@ -248,7 +248,7 @@ test("fresh user: register, locations, photos, outfits, variant, plan, Today, we
   await expect(page).toHaveURL(/login/);
   expect((await page.request.get("/api/v1/items")).status()).toBe(401);
   await page.getByLabel("Adresse e-mail").fill(email);
-  await page.getByLabel("Mot de passe").fill(password);
+  await page.getByLabel("Mot de passe", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Se connecter", exact: true }).click();
   await expect(page).toHaveURL(/today/);
 });

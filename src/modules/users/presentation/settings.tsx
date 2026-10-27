@@ -8,6 +8,7 @@ import { useApp } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import type { Location } from "@/modules/shared/presentation/types";
 import { LocationForm } from "@/modules/locations/presentation/location-form";
+import { TimezoneSelect } from "./timezone-select";
 import { api, jsonBody } from "@/lib/api-client";
 import { authClient } from "@/modules/auth/client";
 export function Settings() {
@@ -161,15 +162,7 @@ export function Settings() {
                 Renvoyer le lien de vérification
               </Button>
             )}
-            <label>
-              Fuseau horaire
-              <input
-                name="timezone"
-                defaultValue={me!.preference.timezone}
-                required
-                placeholder="Europe/Paris"
-              />
-            </label>
+            <TimezoneSelect defaultValue={me!.preference.timezone} />
             <label>
               Emplacement par défaut
               <select
