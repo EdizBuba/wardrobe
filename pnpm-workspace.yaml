@@ -3,6 +3,8 @@ overrides:
   "@prisma/config>deepmerge-ts": "8.0.2"
   # Fix auth-plugin downgrade and compressed-protocol DoS advisories.
   mysql2: "3.24.6"
+  # Patch the undici DoS advisory pulled by better-auth's test dependency.
+  "jsdom>undici": "8.12.2"
 
 allowBuilds:
   "@prisma/engines": true
