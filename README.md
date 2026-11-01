@@ -6,7 +6,7 @@ Wardrobe est une application web que j'ai développée pour organiser une garde-
 
 - Créer des emplacements comme la maison ou un lieu de stockage.
 - Ajouter des vêtements, leur état, leur disponibilité et des photos privées.
-- Préremplir une pièce depuis le lien d'un article quand le site l'autorise (Open Graph / JSON-LD).
+- Préremplir une pièce depuis le lien d'un article (Open Graph / JSON-LD), avec fallback nom/marque et photo manuelle si le site bloque.
 - Composer des tenues à partir des vêtements enregistrés et créer plusieurs variantes.
 - Préparer le calendrier et consulter la page « Aujourd'hui ».
 - Marquer une tenue comme portée et retrouver sa composition dans l'historique.

@@ -3,6 +3,7 @@ import { isIP } from "node:net";
 import { AppError } from "@/lib/errors";
 import { normalizeImage } from "./image-storage";
 import {
+  fallbackMetadata,
   isPrivateAddress,
   parseHttpUrl,
   parseProductMetadata,
@@ -18,6 +19,7 @@ const USER_AGENT =
 export type ProductPreview = ProductMetadata & {
   sourceUrl: string;
   imageDataUrl?: string;
+  blocked?: boolean;
 };
 
 function blocked() {
@@ -123,38 +125,60 @@ export async function previewProduct(input: string): Promise<ProductPreview> {
   const url = parseHttpUrl(input);
   if (!url) throw new AppError("PREVIEW_URL", "Lien invalide.", 400);
 
-  const page = await fetchLimited(
-    url,
-    "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5",
-    MAX_HTML_BYTES,
-  );
-  const html = new TextDecoder("utf-8").decode(page.bytes);
-  if (!/html|xhtml/i.test(page.contentType) && !html.trimStart().startsWith("<"))
-    throw failed();
+  try {
+    const page = await fetchLimited(
+      url,
+      "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5",
+      MAX_HTML_BYTES,
+    );
+    const html = new TextDecoder("utf-8").decode(page.bytes);
+    if (!/html|xhtml/i.test(page.contentType) && !html.trimStart().startsWith("<"))
+      throw failed();
 
-  const metadata = parseProductMetadata(html, page.finalUrl.toString());
-  if (!metadata.name && !metadata.imageUrl)
-    throw new AppError("PREVIEW_EMPTY", "Aucune information trouvée sur cette page.", 422);
+    const metadata = parseProductMetadata(html, page.finalUrl.toString());
+    if (!metadata.name && !metadata.imageUrl)
+      throw new AppError(
+        "PREVIEW_EMPTY",
+        "Aucune information trouvée sur cette page.",
+        422,
+      );
 
-  let imageDataUrl: string | undefined;
-  if (metadata.imageUrl) {
-    const imageUrl = parseHttpUrl(metadata.imageUrl);
-    if (imageUrl) {
-      try {
-        const image = await fetchLimited(imageUrl, "image/*", MAX_IMAGE_BYTES);
-        if (/^image\//i.test(image.contentType)) {
-          const normalized = await normalizeImage(image.bytes);
-          imageDataUrl = `data:image/webp;base64,${Buffer.from(normalized.full).toString("base64")}`;
+    let imageDataUrl: string | undefined;
+    if (metadata.imageUrl) {
+      const imageUrl = parseHttpUrl(metadata.imageUrl);
+      if (imageUrl) {
+        try {
+          const image = await fetchLimited(imageUrl, "image/*", MAX_IMAGE_BYTES);
+          if (/^image\//i.test(image.contentType)) {
+            const normalized = await normalizeImage(image.bytes);
+            imageDataUrl = `data:image/webp;base64,${Buffer.from(normalized.full).toString("base64")}`;
+          }
+        } catch {
+          // The page is still useful without its image.
         }
-      } catch {
-        // The page is still useful without its image.
       }
     }
-  }
 
-  return {
-    ...metadata,
-    sourceUrl: page.finalUrl.toString(),
-    imageDataUrl,
-  };
+    return {
+      ...metadata,
+      sourceUrl: page.finalUrl.toString(),
+      imageDataUrl,
+    };
+  } catch (error) {
+    if (
+      error instanceof AppError &&
+      [
+        "PREVIEW_BLOCKED",
+        "PREVIEW_FAILED",
+        "PREVIEW_EMPTY",
+        "PREVIEW_TOO_LARGE",
+        "PREVIEW_REDIRECT",
+      ].includes(error.code)
+    ) {
+      const fallback = fallbackMetadata(url.toString());
+      if (fallback.name || fallback.brand)
+        return { ...fallback, sourceUrl: url.toString(), blocked: true };
+    }
+    throw error;
+  }
 }

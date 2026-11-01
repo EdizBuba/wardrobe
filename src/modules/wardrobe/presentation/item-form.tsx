@@ -32,6 +32,7 @@ type Preview = {
   currency?: string;
   sourceUrl: string;
   imageDataUrl?: string;
+  blocked?: boolean;
 };
 function dataUrlToFile(dataUrl: string): File {
   const [header, base64] = dataUrl.split(",");
@@ -77,6 +78,7 @@ export function ItemForm({
   const [photoPreview, setPhotoPreview] = useState<string>();
   const photoUrl = useRef<string | undefined>(undefined);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
   const [importing, setImporting] = useState(false);
   const [savedId, setSavedId] = useState(item?.id);
@@ -121,11 +123,16 @@ export function ItemForm({
     }
     setImporting(true);
     setError("");
+    setNotice("");
     try {
       const preview = await api<Preview>("items/preview", {
         method: "POST",
         body: jsonBody({ url: sourceUrl }),
       });
+      if (preview.blocked)
+        setNotice(
+          "Ce site bloque la récupération. Le nom et la marque sont remplis ; ajoute la photo avec « Coller l’image » ou le sélecteur.",
+        );
       if (preview.name && !getValues("name")) setValue("name", preview.name);
       if (preview.brand && !getValues("brand"))
         setValue("brand", preview.brand);
@@ -145,6 +152,23 @@ export function ItemForm({
       setError((cause as Error).message);
     } finally {
       setImporting(false);
+    }
+  }
+  async function pastePhoto() {
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const type = item.types.find((value) => value.startsWith("image/"));
+        if (!type) continue;
+        const blob = await item.getType(type);
+        setPhotoFile(new File([blob], "article.webp", { type }));
+        return;
+      }
+      setError("Aucune image dans le presse-papiers.");
+    } catch {
+      setError(
+        "Impossible de lire le presse-papiers. Choisis un fichier ou glisse l’image.",
+      );
     }
   }
   async function deletePhoto(id: string) {
@@ -258,6 +282,7 @@ export function ItemForm({
           Colle le lien d’un article. Si le site bloque, ajoute la photo
           toi-même.
         </p>
+        {notice && <p className="small muted">{notice}</p>}
         <label
           className="photo-drop"
           onDragOver={(event) => event.preventDefault()}
@@ -265,6 +290,13 @@ export function ItemForm({
             event.preventDefault();
             const file = event.dataTransfer.files?.[0];
             if (file) choosePhoto(file);
+          }}
+          onPaste={(event) => {
+            const file = event.clipboardData.files?.[0];
+            if (file) {
+              event.preventDefault();
+              choosePhoto(file);
+            }
           }}
         >
           Photo <span className="muted">(facultatif)</span>
@@ -281,6 +313,17 @@ export function ItemForm({
             image.
           </span>
         </label>
+        <div className="inline-actions">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={pastePhoto}
+            disabled={pending || importing}
+          >
+            Coller l’image
+          </Button>
+        </div>
         {photoPreview && (
           <div className="photo-preview">
             <Image

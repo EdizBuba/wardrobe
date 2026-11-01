@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  fallbackMetadata,
   isPrivateAddress,
   parseHttpUrl,
   parseProductMetadata,
@@ -63,6 +64,29 @@ describe("product metadata", () => {
       priceCents: 5990,
       currency: "EUR",
       imageUrl: "https://cdn.example.com/a.jpg",
+    });
+  });
+});
+
+describe("blocked product fallback", () => {
+  it("derives a name and brand from the URL", () => {
+    expect(
+      fallbackMetadata(
+        "https://www.bershka.com/fr/femme/pull-col-rond-brod%C3%A9-c1010193132p228470439.html",
+      ),
+    ).toEqual({ name: "Pull col rond brodé", brand: "Bershka" });
+    expect(
+      fallbackMetadata(
+        "https://www.zara.com/fr/fr/pull-col-rond-p01234567.html",
+      ),
+    ).toEqual({ name: "Pull col rond", brand: "Zara" });
+    expect(
+      fallbackMetadata(
+        "https://www.nike.com/fr/t/chaussure-de-basket-tatum-5-sunrise-KeYydCTe/IO1746-401",
+      ),
+    ).toEqual({
+      name: "Chaussure de basket tatum 5 sunrise",
+      brand: "Nike",
     });
   });
 });

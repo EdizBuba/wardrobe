@@ -22,7 +22,7 @@ Une réponse réussie contient data. Les créations renvoient 201, les suppressi
 
 Les listes sont paginées et filtrables. Les schémas Zod des modules valident les paramètres.
 
-L'import d'un lien produit lit la page côté serveur. Si le site bloque la requête (403/429), aucune information n'est récupérée et le client propose l'upload manuel. Aucun contournement anti-bot n'est effectué.
+L'import d'un lien produit lit la page côté serveur. Si le site bloque la requête (403/429), le nom et la marque sont déduits de l'URL, le lien est conservé et le client propose le collage ou l'upload manuel de la photo. Aucun contournement anti-bot n'est effectué.
 
 Les dates du calendrier s'échangent en YYYY-MM-DD et représentent un jour civil. Ne les convertis pas en heure locale. La page Aujourd'hui utilise le fuseau du profil.
 

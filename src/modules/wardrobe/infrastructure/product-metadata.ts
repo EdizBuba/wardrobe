@@ -48,6 +48,48 @@ export function isPrivateAddress(address: string): boolean {
   return true;
 }
 
+function safeDecode(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function siteBrand(hostname: string) {
+  const parts = hostname.toLowerCase().replace(/^www\./, "").split(".");
+  const name = parts[0] === "m" ? parts[1] : parts[0];
+  return name ? name.charAt(0).toUpperCase() + name.slice(1) : undefined;
+}
+
+export function fallbackMetadata(value: string): ProductMetadata {
+  const url = parseHttpUrl(value);
+  if (!url) return {};
+  const brand = siteBrand(url.hostname);
+  const segments = url.pathname
+    .split("/")
+    .filter(Boolean)
+    .map(safeDecode)
+    .sort((a, b) => b.length - a.length);
+  for (const segment of segments) {
+    const cleaned = segment
+      .replace(/\.html?$/i, "")
+      .replace(/[-_](?:c\d+p\d+|[a-z]?\d{5,}[a-z0-9]*)$/i, "")
+      .replace(/[-_][A-Za-z0-9]{6,}$/, (match) =>
+        /[A-Z]/.test(match) && /[a-z]/.test(match) ? "" : match,
+      )
+      .replace(/[-_]+/g, " ")
+      .trim();
+    if (cleaned.length >= 3 && /[a-zà-ÿ]/i.test(cleaned)) {
+      return {
+        name: cleaned.charAt(0).toUpperCase() + cleaned.slice(1),
+        brand,
+      };
+    }
+  }
+  return { brand };
+}
+
 export function parseHttpUrl(value: string): URL | null {
   let url: URL;
   try {
