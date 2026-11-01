@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/shared/dialog";
@@ -22,6 +23,25 @@ type Fields = {
   notes: string;
   favorite: boolean;
 };
+type Preview = {
+  name?: string;
+  brand?: string;
+  color?: string;
+  description?: string;
+  priceCents?: number;
+  currency?: string;
+  sourceUrl: string;
+  imageDataUrl?: string;
+};
+function dataUrlToFile(dataUrl: string): File {
+  const [header, base64] = dataUrl.split(",");
+  const mime = /data:([^;]+)/.exec(header ?? "")?.[1] ?? "image/webp";
+  const binary = atob(base64 ?? "");
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1)
+    bytes[index] = binary.charCodeAt(index);
+  return new File([bytes], "article.webp", { type: mime });
+}
 export function ItemForm({
   item,
   onClose,
@@ -35,6 +55,8 @@ export function ItemForm({
   const {
     register,
     handleSubmit,
+    getValues,
+    setValue,
     formState: { errors },
   } = useForm<Fields>({
     defaultValues: {
@@ -52,8 +74,11 @@ export function ItemForm({
     },
   });
   const [photo, setPhoto] = useState<File>();
+  const [photoPreview, setPhotoPreview] = useState<string>();
+  const photoUrl = useRef<string | undefined>(undefined);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [savedId, setSavedId] = useState(item?.id);
   const detail = useResource<
     Item & {
@@ -63,6 +88,65 @@ export function ItemForm({
     }
   >(item ? "items/" + item.id : null);
   const displayedItem = detail.data ?? item;
+  useEffect(
+    () => () => {
+      if (photoUrl.current) URL.revokeObjectURL(photoUrl.current);
+    },
+    [],
+  );
+  function setPhotoFile(file?: File) {
+    if (photoUrl.current) URL.revokeObjectURL(photoUrl.current);
+    photoUrl.current = file ? URL.createObjectURL(file) : undefined;
+    setPhotoPreview(photoUrl.current);
+    setPhoto(file);
+  }
+  function choosePhoto(file?: File) {
+    if (!file) {
+      setPhotoFile(undefined);
+      return;
+    }
+    if (!file.type.startsWith("image/") || file.size > 8 * 1024 * 1024) {
+      setError("Choisis une image de moins de 8 Mo.");
+      setPhotoFile(undefined);
+      return;
+    }
+    setError("");
+    setPhotoFile(file);
+  }
+  async function importProduct() {
+    const sourceUrl = getValues("sourceUrl").trim();
+    if (!sourceUrl) {
+      setError("Colle le lien de l'article.");
+      return;
+    }
+    setImporting(true);
+    setError("");
+    try {
+      const preview = await api<Preview>("items/preview", {
+        method: "POST",
+        body: jsonBody({ url: sourceUrl }),
+      });
+      if (preview.name && !getValues("name")) setValue("name", preview.name);
+      if (preview.brand && !getValues("brand"))
+        setValue("brand", preview.brand);
+      if (preview.color && !getValues("primaryColor"))
+        setValue("primaryColor", preview.color);
+      if (preview.sourceUrl) setValue("sourceUrl", preview.sourceUrl);
+      const price =
+        preview.priceCents != null
+          ? `Prix : ${(preview.priceCents / 100).toFixed(2).replace(".", ",")} ${preview.currency ?? "EUR"}`
+          : "";
+      const notes = [preview.description, price]
+        .filter((value): value is string => Boolean(value))
+        .join("\n\n");
+      if (notes && !getValues("notes")) setValue("notes", notes.slice(0, 4000));
+      if (preview.imageDataUrl) setPhotoFile(dataUrlToFile(preview.imageDataUrl));
+    } catch (cause) {
+      setError((cause as Error).message);
+    } finally {
+      setImporting(false);
+    }
+  }
   async function deletePhoto(id: string) {
     setPending(true);
     setError("");
@@ -152,26 +236,70 @@ export function ItemForm({
             ))}
           </div>
         )}
-        <label>
+        <div className="import-row">
+          <label>
+            Lien de l’article <span className="muted">(facultatif)</span>
+            <input
+              {...register("sourceUrl")}
+              type="url"
+              placeholder="https://…"
+            />
+          </label>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={importProduct}
+            disabled={pending || importing}
+          >
+            {importing ? "Récupération…" : "Récupérer"}
+          </Button>
+        </div>
+        <p className="field-help">
+          Colle le lien d’un article. Si le site bloque, ajoute la photo
+          toi-même.
+        </p>
+        <label
+          className="photo-drop"
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault();
+            const file = event.dataTransfer.files?.[0];
+            if (file) choosePhoto(file);
+          }}
+        >
           Photo <span className="muted">(facultatif)</span>
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp,image/avif"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file && file.size > 8 * 1024 * 1024) {
-                setError("Maximum 8 Mo par photo.");
-                e.target.value = "";
-                setPhoto(undefined);
-                return;
-              }
-              setPhoto(file);
+            onChange={(event) => {
+              choosePhoto(event.target.files?.[0]);
+              event.target.value = "";
             }}
           />
           <span className="field-help">
-            JPEG, PNG, WebP ou AVIF, jusqu’à 8 Mo.
+            JPEG, PNG, WebP ou AVIF, jusqu’à 8 Mo. Tu peux aussi glisser une
+            image.
           </span>
         </label>
+        {photoPreview && (
+          <div className="photo-preview">
+            <Image
+              src={photoPreview}
+              alt="Aperçu de la photo"
+              width={220}
+              height={220}
+              unoptimized
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPhotoFile(undefined)}
+            >
+              Retirer la photo
+            </Button>
+          </div>
+        )}
         <label>
           Nom de la pièce
           <input
@@ -248,14 +376,6 @@ export function ItemForm({
             </label>
           </div>
           <label>
-            Lien du produit
-            <input
-              {...register("sourceUrl")}
-              type="url"
-              placeholder="https://…"
-            />
-          </label>
-          <label>
             Notes
             <textarea {...register("notes")} maxLength={4000} />
           </label>
@@ -298,7 +418,7 @@ export function ItemForm({
           <Button type="button" variant="outline" onClick={onClose}>
             Annuler
           </Button>
-          <Button disabled={pending}>
+          <Button disabled={pending || importing}>
             {pending ? "Enregistrement…" : "Enregistrer"}
           </Button>
         </div>
