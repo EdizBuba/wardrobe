@@ -32,6 +32,12 @@ export const itemFilterSchema = z.object({
   category: z.enum(categories).optional(),
   status: z.enum(statuses).optional(),
 });
+export const productPreviewSchema = z.object({
+  url: z
+    .url()
+    .max(2048)
+    .refine((value) => /^https?:\/\//i.test(value)),
+});
 export const itemSchema = z.object({
   name: z.string().trim().min(1).max(120),
   category: z.enum(categories),

@@ -5,6 +5,7 @@ import {
   idSchema,
   itemSchema,
   itemFilterSchema,
+  productPreviewSchema,
 } from "@/modules/wardrobe/domain/schemas";
 import {
   listLocations,
@@ -18,6 +19,7 @@ import {
   saveItem,
   archiveItem,
 } from "@/modules/wardrobe/application/service";
+import { previewProduct } from "@/modules/wardrobe/infrastructure/product-page";
 import {
   uploadImage,
   getImage,
@@ -64,7 +66,8 @@ const handler = privateRoute(async (request, userId) => {
   const url = new URL(request.url);
   const path = url.pathname.split("/").slice(3);
   const [resource, rawId, child, rawChildId] = path;
-  const id = rawId ? idSchema.parse(rawId) : undefined;
+  const isPreview = resource === "items" && rawId === "preview" && !child;
+  const id = rawId && !isPreview ? idSchema.parse(rawId) : undefined;
   const childId = rawChildId ? idSchema.parse(rawChildId) : undefined;
   const method = request.method;
   const page = z.coerce
@@ -131,6 +134,15 @@ const handler = privateRoute(async (request, userId) => {
       await archiveLocation(userId, id);
       return empty();
     }
+  }
+  if (isPreview) {
+    if (method !== "POST")
+      throw new AppError("ENDPOINT_NOT_FOUND", "Route introuvable.", 404);
+    return json(
+      await previewProduct(
+        productPreviewSchema.parse(await readJson(request)).url,
+      ),
+    );
   }
   if (resource === "items") {
     if (method === "POST" && id && child === "images" && !childId) {
