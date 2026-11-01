@@ -2,7 +2,19 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Plus, MapPin, Pencil, LogOut, Monitor, Sun, Moon } from "lucide-react";
+import {
+  Plus,
+  MapPin,
+  Pencil,
+  LogOut,
+  Monitor,
+  Sun,
+  Moon,
+  House,
+  Users,
+  Plane,
+  Archive,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import { useApp } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
@@ -11,6 +23,14 @@ import { LocationForm } from "@/modules/locations/presentation/location-form";
 import { TimezoneSelect } from "./timezone-select";
 import { api, jsonBody } from "@/lib/api-client";
 import { authClient } from "@/modules/auth/client";
+import { locationTypes } from "@/config/labels";
+const locationIcons: Record<Location["type"], typeof MapPin> = {
+  HOME: House,
+  PARENTS_HOME: Users,
+  TRAVEL: Plane,
+  STORAGE: Archive,
+  OTHER: MapPin,
+};
 export function Settings() {
   const { me, locations, refresh } = useApp();
   const router = useRouter();
@@ -98,24 +118,32 @@ export function Settings() {
               Où gardez-vous vos vêtements ? Ajoutez votre premier lieu.
             </p>
           )}
-          {locations.map((l) => (
-            <div className="location-row" key={l.id}>
-              <MapPin size={20} />
-              <div>
-                <h3>{l.name}</h3>
-                {l.isDefault && (
-                  <span className="badge badge-success">Par défaut</span>
-                )}
+          {locations.map((l) => {
+            const Icon = locationIcons[l.type];
+            return (
+              <div className="location-row" key={l.id}>
+                <Icon size={20} />
+                <div>
+                  <h3>{l.name}</h3>
+                  <div className="location-badges">
+                    <span className="badge badge-neutral">
+                      {locationTypes[l.type]}
+                    </span>
+                    {l.isDefault && (
+                      <span className="badge badge-success">Par défaut</span>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  onClick={() => setLocation(l)}
+                  aria-label={"Modifier " + l.name}
+                >
+                  <Pencil size={17} />
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                onClick={() => setLocation(l)}
-                aria-label={"Modifier " + l.name}
-              >
-                <Pencil size={17} />
-              </Button>
-            </div>
-          ))}
+            );
+          })}
           <Link href="/history" className="text-link">
             Mon historique de tenues →
           </Link>

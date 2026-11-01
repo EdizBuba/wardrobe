@@ -982,6 +982,12 @@ main {
 .location-row > div {
   flex: 1;
 }
+.location-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
 .settings-columns .text-link {
   margin-top: 20px;
 }
