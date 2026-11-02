@@ -308,9 +308,16 @@ details > label {
   flex: 1 1 16rem;
 }
 .photo-drop {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   border: 1px dashed var(--border);
   border-radius: var(--radius);
   padding: 10px;
+}
+.photo-drop:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 .photo-preview {
   display: flex;
