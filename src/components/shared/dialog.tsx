@@ -6,10 +6,12 @@ export function Dialog({
   title,
   children,
   onClose,
+  closeOnEscape = true,
 }: {
   title: string;
   children: React.ReactNode;
   onClose: () => void;
+  closeOnEscape?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -20,7 +22,13 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      onCancel={onClose}
+      onCancel={(event) => {
+        if (!closeOnEscape) {
+          event.preventDefault();
+          return;
+        }
+        onClose();
+      }}
       aria-labelledby="dialog-title"
       className="dialog"
     >

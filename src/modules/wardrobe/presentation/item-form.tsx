@@ -1,5 +1,11 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -34,6 +40,12 @@ type Preview = {
   imageDataUrl?: string;
   blocked?: boolean;
 };
+const subscribeToClipboard = () => () => {};
+const canReadClipboard = () =>
+  typeof navigator !== "undefined" &&
+  typeof navigator.clipboard?.read === "function" &&
+  !/firefox/i.test(navigator.userAgent);
+const cannotReadClipboard = () => false;
 function dataUrlToFile(dataUrl: string): File {
   const [header, base64] = dataUrl.split(",");
   const mime = /data:([^;]+)/.exec(header ?? "")?.[1] ?? "image/webp";
@@ -77,11 +89,17 @@ export function ItemForm({
   const [photo, setPhoto] = useState<File>();
   const [photoPreview, setPhotoPreview] = useState<string>();
   const photoUrl = useRef<string | undefined>(undefined);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
   const [importing, setImporting] = useState(false);
   const [savedId, setSavedId] = useState(item?.id);
+  const clipboardButton = useSyncExternalStore(
+    subscribeToClipboard,
+    canReadClipboard,
+    cannotReadClipboard,
+  );
   const detail = useResource<
     Item & {
       wearItems: {
@@ -96,24 +114,47 @@ export function ItemForm({
     },
     [],
   );
-  function setPhotoFile(file?: File) {
+  const setPhotoFile = useCallback((file?: File) => {
     if (photoUrl.current) URL.revokeObjectURL(photoUrl.current);
     photoUrl.current = file ? URL.createObjectURL(file) : undefined;
     setPhotoPreview(photoUrl.current);
     setPhoto(file);
-  }
-  function choosePhoto(file?: File) {
-    if (!file) {
-      setPhotoFile(undefined);
-      return;
+  }, []);
+  const choosePhoto = useCallback(
+    (file?: File) => {
+      if (!file) {
+        setPhotoFile(undefined);
+        return;
+      }
+      if (!file.type.startsWith("image/") || file.size > 8 * 1024 * 1024) {
+        setError("Choisis une image de moins de 8 Mo.");
+        setPhotoFile(undefined);
+        return;
+      }
+      setError("");
+      setPhotoFile(file);
+    },
+    [setPhotoFile, setError],
+  );
+  useEffect(() => {
+    function handlePaste(event: ClipboardEvent) {
+      let file = event.clipboardData?.files?.[0];
+      if (!file && event.clipboardData) {
+        for (const item of Array.from(event.clipboardData.items)) {
+          if (!item.type.startsWith("image/")) continue;
+          file = item.getAsFile() ?? undefined;
+          if (file) break;
+        }
+      }
+      if (!file) return;
+      event.preventDefault();
+      choosePhoto(file);
     }
-    if (!file.type.startsWith("image/") || file.size > 8 * 1024 * 1024) {
-      setError("Choisis une image de moins de 8 Mo.");
-      setPhotoFile(undefined);
-      return;
-    }
-    setError("");
-    setPhotoFile(file);
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [choosePhoto]);
+  function openFilePicker() {
+    fileInput.current?.click();
   }
   async function importProduct() {
     const sourceUrl = getValues("sourceUrl").trim();
@@ -131,7 +172,7 @@ export function ItemForm({
       });
       if (preview.blocked)
         setNotice(
-          "Ce site bloque la récupération. Le nom et la marque sont remplis ; ajoute la photo avec « Coller l’image » ou le sélecteur.",
+          "Ce site bloque la récupération. Le nom et la marque sont remplis ; ajoute la photo avec Ctrl+V ou le sélecteur.",
         );
       if (preview.name && !getValues("name")) setValue("name", preview.name);
       if (preview.brand && !getValues("brand"))
@@ -237,7 +278,11 @@ export function ItemForm({
     }
   }
   return (
-    <Dialog title={item ? item.name : "Ajouter une pièce"} onClose={onClose}>
+    <Dialog
+      title={item ? item.name : "Ajouter une pièce"}
+      onClose={onClose}
+      closeOnEscape={false}
+    >
       <form onSubmit={handleSubmit(save)} className="form-stack">
         {displayedItem && (
           <div className="detail-image">
@@ -283,46 +328,57 @@ export function ItemForm({
           toi-même.
         </p>
         {notice && <p className="small muted">{notice}</p>}
-        <label
+        <div
           className="photo-drop"
+          tabIndex={0}
+          role="group"
+          aria-label="Photo de la pièce"
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => {
             event.preventDefault();
             const file = event.dataTransfer.files?.[0];
             if (file) choosePhoto(file);
           }}
-          onPaste={(event) => {
-            const file = event.clipboardData.files?.[0];
-            if (file) {
-              event.preventDefault();
-              choosePhoto(file);
-            }
-          }}
         >
-          Photo <span className="muted">(facultatif)</span>
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/avif"
-            onChange={(event) => {
-              choosePhoto(event.target.files?.[0]);
-              event.target.value = "";
-            }}
-          />
-          <span className="field-help">
-            JPEG, PNG, WebP ou AVIF, jusqu’à 8 Mo. Tu peux aussi glisser une
-            image.
+          <span>
+            Photo <span className="muted">(facultatif)</span>
           </span>
-        </label>
+          <span className="field-help">
+            Glisse une image ici, ou utilise les boutons ci-dessous. Ctrl+V
+            fonctionne aussi. JPEG, PNG, WebP ou AVIF, jusqu’à 8 Mo.
+          </span>
+        </div>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/avif"
+          hidden
+          onChange={(event) => {
+            choosePhoto(event.target.files?.[0]);
+            event.target.value = "";
+          }}
+        />
         <div className="inline-actions">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={pastePhoto}
+            onClick={openFilePicker}
             disabled={pending || importing}
           >
-            Coller l’image
+            Choisir une photo
           </Button>
+          {clipboardButton && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={pastePhoto}
+              disabled={pending || importing}
+            >
+              Coller l’image
+            </Button>
+          )}
         </div>
         {photoPreview && (
           <div className="photo-preview">
